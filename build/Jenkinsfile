@@ -1,0 +1,128 @@
+// Jenkinsfile V.2.3
+// Description: Handles Docker build, push, and deploy to EC2 using versioning based on Git tags and Jenkins build numbers.
+// Includes improved error handling, Docker image tagging, push stages, and email notifications for build results.
+// Includes improved error handling, Docker image tagging, push stages, and email notifications for build results.
+
+pipeline {
+    agent any
+    environment {
+        DOCKER_CREDENTIALS_ID = 'docker-credentials-id'
+        DOCKER_REGISTRY       = 'docker.nexthouse.org'
+
+        // Deployment info (common)
+        EC2_CREDENTIALS_ID    = 'ec2-ssh-key-id'
+        EC2_USER              = 'ubuntu'
+        EC2_HOST              = 'ec2-98-84-67-183.compute-1.amazonaws.com'
+        DEPLOY_PATH           = '/data/applications/release/engage'
+
+        EMAIL_RECIPIENTS      = 'tharun@knockthedoor.com'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
+
+        stage('Parse Tag') {
+            steps {
+                script {
+                    // Get full git tag (e.g. "lite-v1.0.0")
+                    def gitTag = sh(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
+                    echo "Detected Git tag: ${gitTag}"
+
+                    // Split into service + version
+                    def parts = gitTag.tokenize('-')
+                    if (parts.size() < 2) {
+                        error "Invalid tag format. Expected <service>-<version>, got: ${gitTag}"
+                    }
+
+                    env.SERVICE    = parts[0]             // lite / worker / admin-cli
+                    env.VERSION    = parts[1]             // v1.0.0
+                    env.DOCKER_TAG = "${env.VERSION}-${env.BUILD_NUMBER}"
+
+                    echo "Service: ${env.SERVICE}"
+                    echo "Version: ${env.VERSION}"
+                    echo "Docker Tag: ${env.DOCKER_TAG}"
+                }
+            }
+        }
+
+        stage('Build & Push Image') {
+            steps {
+                script {
+                    dockerLogin()
+                    dir('build') {
+                        sh "./build.sh ${env.SERVICE} ${env.DOCKER_TAG}"
+                    }
+
+                    // Resolve image name from BUILD_CONFIG
+                    def imageName = sh(
+                        script: "source build/BUILD_CONFIG && echo ${DOCKER_REGISTRY}/\\${SERVICES[${env.SERVICE}]}",
+                        returnStdout: true
+                    ).trim()
+
+                    sh """
+                        docker push ${imageName}:${DOCKER_TAG}
+                        docker push ${imageName}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    sshagent([env.EC2_CREDENTIALS_ID]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
+                              cd ${DEPLOY_PATH} &&
+                              docker compose -f docker-compose.yaml pull ${SERVICE} &&
+                              docker compose -f docker-compose.yaml up -d ${SERVICE}
+                            '
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext(
+                to: "${EMAIL_RECIPIENTS}",
+                subject: "✅ Build Success: ${SERVICE} ${VERSION} (#${BUILD_NUMBER})",
+                body: """\
+                    <p>Service: ${SERVICE}</p>
+                    <p>Version: ${VERSION}</p>
+                    <p>Docker Tag: ${DOCKER_TAG}</p>
+                    <p>Build URL: ${BUILD_URL}</p>
+                """
+            )
+        }
+        failure {
+            emailext(
+                to: "${EMAIL_RECIPIENTS}",
+                subject: "❌ Build Failed: ${SERVICE} ${VERSION} (#${BUILD_NUMBER})",
+                body: """\
+                    <p>Service: ${SERVICE}</p>
+                    <p>Version: ${VERSION}</p>
+                    <p>Build URL: ${BUILD_URL}</p>
+                """
+            )
+        }
+    }
+}
+
+def dockerLogin() {
+    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+        sh "echo ${DOCKER_PASSWORD} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USERNAME} --password-stdin"
+    }
+}
+
