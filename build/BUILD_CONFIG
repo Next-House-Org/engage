@@ -1,12 +1,14 @@
+
 # BUILD_CONFIG V.4.0
-# Description: Centralized Docker image mapping for Engage services
+# Description: Docker build config for Engage services
 
-DOCKER_REGISTRY="docker.nexthouse.org/engage"
+DOCKER_REGISTRY="docker.nexthouse.org"
 
-# Service → Docker image mapping (relative to DOCKER_REGISTRY)
+# Service → [docker image path, build context]
 declare -A SERVICES=(
-  [lite]="lite"
-  [worker]="worker"
-  [admin-cli]="admin-cli"
+  [lite]="engage/engage-lite:./services/lite"
+  [worker]="engage/engage-worker:./services/worker"
+  [admin-cli]="engage/admin-cli:./admin-cli"
 )
+
 
