@@ -26,6 +26,10 @@ IFS='|' read -r IMAGE_NAME CONTEXT DOCKERFILE <<< "${SERVICES[$SERVICE]}"
 
 FULL_IMAGE="${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
+# Go to repo root
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
 echo "🚀 Building service: $SERVICE"
 echo "➡️ Context: $CONTEXT"
 echo "➡️ Dockerfile: $DOCKERFILE"
