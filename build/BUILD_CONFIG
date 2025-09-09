@@ -3,12 +3,11 @@
 
 DOCKER_REGISTRY="docker.nexthouse.org/engage"
 
-# Service → "image-name|build-context|dockerfile"
-declare -A SERVICES=(
-  [dashboard]="dashboard|.|./packages/dashboard/Dockerfile"
-  [api]="api|.|./packages/api/Dockerfile"
-  [worker]="worker|.|./packages/worker/Dockerfile"
-  [lite]="lite|.|./packages/lite/Dockerfile"
-  [admin-cli]="admin-cli|.|./packages/admin-cli/Dockerfile"
+# Service configuration format: "service_name|image-name|build-context|dockerfile"
+SERVICES=(
+  "dashboard|dashboard|.|./packages/dashboard/Dockerfile"
+  "api|api|.|./packages/api/Dockerfile"
+  "worker|worker|.|./packages/worker/Dockerfile"
+  "lite|lite|.|./packages/lite/Dockerfile"
+  "admin-cli|admin-cli|.|./packages/admin-cli/Dockerfile"
 )
-

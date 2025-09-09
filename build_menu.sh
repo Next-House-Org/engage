@@ -7,22 +7,21 @@ source "$(pwd)/build/BUILD_CONFIG"
 
 # List available services
 echo "Available services:"
-i=1
-SERVICE_NAMES=()
-for svc in "${SERVICES[@]}"; do
-  echo "  $i) $svc"
-  SERVICE_NAMES+=("$svc")
-  ((i++))
+for i in "${!SERVICES[@]}"; do
+  IFS='|' read -r service_name display_name _ _ <<< "${SERVICES[$i]}"
+  echo "  $((i+1))) $service_name"
 done
 
 # Prompt for service
 read -p "Select a service to build (number): " svc_num
-if [[ -z "$svc_num" || "$svc_num" -lt 1 || "$svc_num" -gt "${#SERVICE_NAMES[@]}" ]]; then
+if [[ -z "$svc_num" || ! "$svc_num" =~ ^[0-9]+$ || "$svc_num" -lt 1 || "$svc_num" -gt "${#SERVICES[@]}" ]]; then
   echo "❌ Invalid selection."
   exit 1
 fi
-SERVICE_INDEX=$((svc_num-1))
-SERVICE="${SERVICE_NAMES[$SERVICE_INDEX]}"
+
+# Get the selected service info
+SERVICE_INFO="${SERVICES[$((svc_num-1))]}"
+IFS='|' read -r SERVICE _ _ _ <<< "$SERVICE_INFO"
 
 # Prompt for version
 read -p "Enter version (e.g., v1.0.0): " VERSION

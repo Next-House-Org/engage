@@ -15,14 +15,28 @@ fi
 # Load config
 source $(dirname "$0")/BUILD_CONFIG
 
-if [[ -z "${SERVICES[$SERVICE]}" ]]; then
+# Find the service in the array
+SERVICE_INFO=""
+for service_info in "${SERVICES[@]}"; do
+  IFS='|' read -r service_name image_name context dockerfile <<< "$service_info"
+  if [[ "$service_name" == "$SERVICE" ]]; then
+    SERVICE_INFO="$service_info"
+    break
+  fi
+done
+
+if [[ -z "$SERVICE_INFO" ]]; then
   echo "❌ Unknown service: $SERVICE"
-  echo "➡️ Available: ${!SERVICES[@]}"
+  echo "➡️ Available services:"
+  for service_info in "${SERVICES[@]}"; do
+    IFS='|' read -r service_name _ _ _ <<< "$service_info"
+    echo "  - $service_name"
+  done
   exit 1
 fi
 
 # Parse mapping
-IFS='|' read -r IMAGE_NAME CONTEXT DOCKERFILE <<< "${SERVICES[$SERVICE]}"
+IFS='|' read -r _ IMAGE_NAME CONTEXT DOCKERFILE <<< "$SERVICE_INFO"
 
 FULL_IMAGE="${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
@@ -37,4 +51,3 @@ echo "➡️ Image: $FULL_IMAGE"
 
 docker build -t "$FULL_IMAGE" -f "$DOCKERFILE" "$CONTEXT"
 docker push "$FULL_IMAGE"
-
