@@ -7,9 +7,21 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY = "docker.nexthouse.org/engage"
-        GIT_CREDENTIALS_ID = "GIT_CREDENTIALS_ID"
-        DOCKER_CREDENTIALS_ID = "DOCKER_CREDENTIALS_ID"
+
+        DOCKER_CREDENTIALS_ID = 'docker-credentials-id' // Replace with your Docker credentials ID
+        DOCKER_REGISTRY = 'docker.nexthouse.org' // Docker registry URL
+        DOCKER_IMAGE = 'nexthouse/flow' // Docker image name
+        EC2_CREDENTIALS_ID = 'ec2-ssh-key-id' // Replace with your EC2 SSH key credentials ID
+        EC2_USER = 'ubuntu' // EC2 instance user
+        EC2_HOST = 'ec2-18-235-52-172.compute-1.amazonaws.com' // Replace with your EC2 instance public DNS
+        //EC2_HOST = 'ec2-98-84-67-183.compute-1.amazonaws.com' // Replace with your EC2 instance public DNS
+        DEPLOY_PATH = '/data/applications/release/flow' // Deployment path on EC2 instance
+        EMAIL_RECIPIENTS = 'tharun@knockthedoor.com' // Replace with the recipient's email address
+
+
+        //DOCKER_REGISTRY = "docker.nexthouse.org/engage"
+        //GIT_CREDENTIALS_ID = "GIT_CREDENTIALS_ID"
+        //DOCKER_CREDENTIALS_ID = "DOCKER_CREDENTIALS_ID"
     }
 
     stages {
