@@ -41,14 +41,15 @@ pipeline {
                     echo "🔖 Full tag from Git: ${tag}"
 
                     // Expect format: service-version (example: admin-cli-v1.0.0)
-                    def parts = tag.tokenize('-')
-                    if (parts.size() < 2) {
+		            // Split by last dash (so admin-cli-v1.0.0 works)
+		            def idx = tag.lastIndexOf('-')
+                    if (idx == -1) {
                         error "❌ Invalid tag format. Expected: service-version (e.g., admin-cli-v1.0.0)"
                     }
 
-                    SERVICE = parts[0]                         // admin-cli
-                    BASE_VERSION = parts[1]                   // v1.0.0
-                    VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-6
+                    SERVICE = tag.substring(0, idx)           // admin-cli
+                    BASE_VERSION = tag.substring(idx + 1)     // v1.0.0
+		            VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-8
 
                     echo "📦 Service: ${SERVICE}"
                     echo "🏷️ Base Version: ${BASE_VERSION}"
