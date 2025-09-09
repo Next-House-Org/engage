@@ -41,19 +41,23 @@ pipeline {
                     echo "🔖 Full tag from Git: ${tag}"
 
                     // Expect format: service-version (example: admin-cli-v1.0.0)
-		            // Split by last dash (so admin-cli-v1.0.0 works)
-		            def idx = tag.lastIndexOf('-')
+                    def idx = tag.lastIndexOf('-')
                     if (idx == -1) {
                         error "❌ Invalid tag format. Expected: service-version (e.g., admin-cli-v1.0.0)"
                     }
 
-                    SERVICE = tag.substring(0, idx)           // admin-cli
-                    BASE_VERSION = tag.substring(idx + 1)     // v1.0.0
-		            VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-8
+                    def SERVICE = tag.substring(0, idx)           // admin-cli
+                    def BASE_VERSION = tag.substring(idx + 1)     // v1.0.0
+                    def VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-8
 
                     echo "📦 Service: ${SERVICE}"
                     echo "🏷️ Base Version: ${BASE_VERSION}"
                     echo "🚀 Final Version: ${VERSION}"
+
+                    // Set environment variables for later stages
+                    env.SERVICE = SERVICE
+                    env.BASE_VERSION = BASE_VERSION
+                    env.VERSION = VERSION
                 }
             }
         }
@@ -61,7 +65,7 @@ pipeline {
         stage('Build & Push Image') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'DOCKER_CREDENTIALS_ID',
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
                                                     usernameVariable: 'DOCKER_USERNAME',
                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
                         sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
@@ -69,7 +73,7 @@ pipeline {
 
                     // Run build.sh from repo root, not inside build/
                     sh "chmod +x build/build.sh"
-                    sh "build/build.sh ${SERVICE} ${VERSION}"
+                    sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
                 }
             }
         }
