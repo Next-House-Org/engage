@@ -1,30 +1,36 @@
 #!/bin/bash
-# build.sh V.4.0
+# build.sh V.5.0
 # Usage: ./build.sh <service> <version>
-# Example: ./build.sh admin-cli v1.0.0-19
 
-set -euo pipefail
+set -e
 
 SERVICE=$1
 VERSION=$2
 
-# Load build config
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/BUILD_CONFIG"
-
-# Validate service
-if [[ -z "${SERVICES[$SERVICE]+x}" ]]; then
-  echo "❌ Unknown service: $SERVICE"
-  echo "Available services: ${!SERVICES[@]}"
+if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
+  echo "❌ Usage: ./build.sh <service> <version>"
   exit 1
 fi
 
-IMAGE_NAME="${DOCKER_REGISTRY}/${SERVICES[$SERVICE]}"
+# Load config
+source $(dirname "$0")/BUILD_CONFIG
+
+if [[ -z "${SERVICES[$SERVICE]}" ]]; then
+  echo "❌ Unknown service: $SERVICE"
+  echo "➡️ Available: ${!SERVICES[@]}"
+  exit 1
+fi
+
+# Parse mapping
+IFS='|' read -r IMAGE_NAME CONTEXT DOCKERFILE <<< "${SERVICES[$SERVICE]}"
+
+FULL_IMAGE="${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
 echo "🚀 Building service: $SERVICE"
-echo "➡️  Image: ${IMAGE_NAME}"
-echo "➡️  Tag: ${VERSION}"
+echo "➡️ Context: $CONTEXT"
+echo "➡️ Dockerfile: $DOCKERFILE"
+echo "➡️ Image: $FULL_IMAGE"
 
-docker build -t "${IMAGE_NAME}:${VERSION}" "./services/${SERVICE}"
-docker push "${IMAGE_NAME}:${VERSION}"
+docker build -t "$FULL_IMAGE" -f "$DOCKERFILE" "$CONTEXT"
+docker push "$FULL_IMAGE"
 

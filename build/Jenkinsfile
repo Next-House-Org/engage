@@ -7,43 +7,40 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDENTIALS_ID = 'docker-credentials-id'   // Docker credentials ID
-        DOCKER_REGISTRY      = 'docker.nexthouse.org/engage'
-        EMAIL_RECIPIENTS     = 'tharun@knockthedoor.com'
-    }
-
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        DOCKER_REGISTRY = "docker.nexthouse.org/engage"
+        GIT_CREDENTIALS_ID = "GIT_CREDENTIALS_ID"
+        DOCKER_CREDENTIALS_ID = "DOCKER_CREDENTIALS_ID"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    cleanWs()
-                    checkout scm
-                }
+                cleanWs()
+                checkout scm
             }
         }
 
         stage('Extract Git Tag & Service') {
             steps {
                 script {
-                    // Get latest tag (service name)
-                    def gitTag = sh(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
-                    if (!gitTag) {
-                        error "❌ No Git tag found. Please tag the commit before building."
+                    // Extract the latest Git tag
+                    def tag = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
+
+                    echo "🔖 Full tag from Git: ${tag}"
+
+                    // Expect format: service-version (example: admin-cli-v1.0.0)
+                    def parts = tag.tokenize('-')
+                    if (parts.size() < 2) {
+                        error "❌ Invalid tag format. Expected: service-version (e.g., admin-cli-v1.0.0)"
                     }
 
-                    // Service name = tag (e.g. admin-cli)
-                    env.SERVICE = gitTag
+                    SERVICE = parts[0]                         // admin-cli
+                    BASE_VERSION = parts[1]                   // v1.0.0
+                    VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-6
 
-                    // Version = vX.Y.Z-BUILD_NUMBER
-                    def baseVersion = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
-                    env.VERSION = "${baseVersion}-${env.BUILD_NUMBER}"
-
-                    echo "Service: ${env.SERVICE}"
-                    echo "Version: ${env.VERSION}"
+                    echo "📦 Service: ${SERVICE}"
+                    echo "🏷️ Base Version: ${BASE_VERSION}"
+                    echo "🚀 Final Version: ${VERSION}"
                 }
             }
         }
@@ -51,22 +48,16 @@ pipeline {
         stage('Build & Push Image') {
             steps {
                 script {
-                    withCredentials([usernamePassword(
-                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
-                        sh "echo ${DOCKER_PASSWORD} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USERNAME} --password-stdin"
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh '''
+                          echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
+                        '''
+                    }
 
-                        dir('build') {
-                            sh "./build.sh ${env.SERVICE} ${env.VERSION}"
-                        }
-
-                        // Tag & push latest
-                        def imageName = "${DOCKER_REGISTRY}/${env.SERVICE}"
+                    dir("build") {
                         sh """
-                            docker tag ${imageName}:${env.VERSION} ${imageName}:latest
-                            docker push ${imageName}:latest
+                          chmod +x build.sh
+                          ./build.sh ${SERVICE} ${VERSION}
                         """
                     }
                 }
@@ -75,33 +66,16 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
-            emailext(
-                to: "${EMAIL_RECIPIENTS}",
-                subject: "Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """\
-                    <p>✅ The build has succeeded!</p>
-                    <p>Job: ${env.JOB_NAME}</p>
-                    <p>Build Number: ${env.BUILD_NUMBER}</p>
-                    <p>Service: ${env.SERVICE}</p>
-                    <p>Image: ${DOCKER_REGISTRY}/${env.SERVICE}:${env.VERSION}</p>
-                    <p>Build URL: ${env.BUILD_URL}</p>
-                """
-            )
-        }
         failure {
             echo "❌ Build failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
             emailext(
-                to: "${EMAIL_RECIPIENTS}",
-                subject: "Build Failure: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """\
-                    <p>❌ The build has failed!</p>
-                    <p>Job: ${env.JOB_NAME}</p>
-                    <p>Build Number: ${env.BUILD_NUMBER}</p>
-                    <p>Build URL: ${env.BUILD_URL}</p>
-                """
+                subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Check Jenkins logs for details.",
+                to: "tharun@knockthedoor.com"
             )
+        }
+        success {
+            echo "✅ Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
 }

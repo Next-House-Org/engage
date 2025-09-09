@@ -1,14 +1,14 @@
+# BUILD_CONFIG V.5.0
+# Docker build config for Engage monorepo
 
-# BUILD_CONFIG V.4.0
-# Description: Docker build config for Engage services
+DOCKER_REGISTRY="docker.nexthouse.org/engage"
 
-DOCKER_REGISTRY="docker.nexthouse.org"
-
-# Service → [docker image path, build context]
+# Service → "image-name|build-context|dockerfile"
 declare -A SERVICES=(
-  [lite]="engage/engage-lite:./services/lite"
-  [worker]="engage/engage-worker:./services/worker"
-  [admin-cli]="engage/admin-cli:./admin-cli"
+  [dashboard]="dashboard|./packages/dashboard|./packages/dashboard/Dockerfile"
+  [api]="api|./packages/api|./packages/api/Dockerfile"
+  [worker]="worker|./packages/worker|./packages/worker/Dockerfile"
+  [lite]="lite|./packages/lite|./packages/lite/Dockerfile"
+  [admin-cli]="admin-cli|./packages/admin-cli|./packages/admin-cli/Dockerfile"
 )
-
 
