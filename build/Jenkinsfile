@@ -33,23 +33,19 @@ pipeline {
         stage('Parse Tag') {
             steps {
                 script {
-                    // Get full git tag (e.g. "lite-v1.0.0")
-                    def gitTag = sh(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
+                    def gitTag = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
                     echo "Detected Git tag: ${gitTag}"
 
-                    // Split into service + version
-                    def parts = gitTag.tokenize('-')
-                    if (parts.size() < 2) {
-                        error "Invalid tag format. Expected <service>-<version>, got: ${gitTag}"
-                    }
+                    def parts = gitTag.split("-")
+                    def service = parts[0]    // e.g. "admin"
+                    def version = parts[1..-1].join("-") // e.g. "cli-v0.1.0"
 
-                    env.SERVICE    = parts[0]             // lite / worker / admin-cli
-                    env.VERSION    = parts[1]             // v1.0.0
-                    env.DOCKER_TAG = "${env.VERSION}-${env.BUILD_NUMBER}"
+                    env.SERVICE = service
+                    env.VERSION = version
 
                     echo "Service: ${env.SERVICE}"
                     echo "Version: ${env.VERSION}"
-                    echo "Docker Tag: ${env.DOCKER_TAG}"
+                    echo "Docker Tag: ${env.SERVICE}:${env.VERSION}"
                 }
             }
         }

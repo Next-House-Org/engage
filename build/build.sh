@@ -2,32 +2,15 @@
 # build.sh V.3.0
 # Usage: ./build.sh <service> <tag>
 
-set -e
 
-if ! source ./BUILD_CONFIG; then
-  echo "❌ Failed to source BUILD_CONFIG"
-  exit 1
-fi
-
+#!/bin/bash
 SERVICE=$1
-TAG=$2
-
-if [ -z "$SERVICE" ] || [ -z "$TAG" ]; then
-  echo "Usage: $0 <service> <tag>"
-  echo "Available services: ${!SERVICES[@]}"
-  exit 1
-fi
-
-IMAGE="${DOCKER_REGISTRY}/${SERVICES[$SERVICE]}"
+VERSION=$2
 
 echo "🚀 Building service: $SERVICE"
-echo "➡️  Image: $IMAGE"
-echo "➡️  Tag: $TAG"
+echo "➡️  Image: docker.nexthouse.org/$SERVICE"
+echo "➡️  Tag: $VERSION"
 
-cd ../ || { echo "Failed to change directory"; exit 1; }
-
-# Build using the correct Dockerfile
-docker build -f packages/$SERVICE/Dockerfile -t $IMAGE:$TAG -t $IMAGE:latest .
-
-echo "✅ Build complete: $IMAGE:$TAG"
+docker build -t docker.nexthouse.org/$SERVICE:$VERSION ./services/$SERVICE
+docker push docker.nexthouse.org/$SERVICE:$VERSION
 
