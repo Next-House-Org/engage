@@ -1,16 +1,30 @@
 #!/bin/bash
-# build.sh V.3.0
-# Usage: ./build.sh <service> <tag>
+# build.sh V.4.0
+# Usage: ./build.sh <service> <version>
+# Example: ./build.sh admin-cli v1.0.0-19
 
+set -euo pipefail
 
-#!/bin/bash
 SERVICE=$1
 VERSION=$2
 
-echo "🚀 Building service: $SERVICE"
-echo "➡️  Image: docker.nexthouse.org/$SERVICE"
-echo "➡️  Tag: $VERSION"
+# Load build config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/BUILD_CONFIG"
 
-docker build -t docker.nexthouse.org/$SERVICE:$VERSION ./services/$SERVICE
-docker push docker.nexthouse.org/$SERVICE:$VERSION
+# Validate service
+if [[ -z "${SERVICES[$SERVICE]+x}" ]]; then
+  echo "❌ Unknown service: $SERVICE"
+  echo "Available services: ${!SERVICES[@]}"
+  exit 1
+fi
+
+IMAGE_NAME="${DOCKER_REGISTRY}/${SERVICES[$SERVICE]}"
+
+echo "🚀 Building service: $SERVICE"
+echo "➡️  Image: ${IMAGE_NAME}"
+echo "➡️  Tag: ${VERSION}"
+
+docker build -t "${IMAGE_NAME}:${VERSION}" "./services/${SERVICE}"
+docker push "${IMAGE_NAME}:${VERSION}"
 
