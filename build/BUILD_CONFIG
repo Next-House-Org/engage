@@ -5,10 +5,10 @@ DOCKER_REGISTRY="docker.nexthouse.org/engage"
 
 # Service → "image-name|build-context|dockerfile"
 declare -A SERVICES=(
-  [dashboard]="dashboard|./packages/dashboard|./packages/dashboard/Dockerfile"
-  [api]="api|./packages/api|./packages/api/Dockerfile"
-  [worker]="worker|./packages/worker|./packages/worker/Dockerfile"
-  [lite]="lite|./packages/lite|./packages/lite/Dockerfile"
-  [admin-cli]="admin-cli|./packages/admin-cli|./packages/admin-cli/Dockerfile"
+  [dashboard]="dashboard|.|./packages/dashboard/Dockerfile"
+  [api]="api|.|./packages/api/Dockerfile"
+  [worker]="worker|.|./packages/worker/Dockerfile"
+  [lite]="lite|.|./packages/lite/Dockerfile"
+  [admin-cli]="admin-cli|.|./packages/admin-cli/Dockerfile"
 )
 
