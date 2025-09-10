@@ -62,22 +62,50 @@ pipeline {
             }
         }
 
-        stage('Build & Push Image') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
-                                                    usernameVariable: 'DOCKER_USERNAME',
-                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
-                    }
+    //     stage('Build & Push Image') {
+    //         steps {
+    //             script {
+    //                 withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
+    //                                                 usernameVariable: 'DOCKER_USERNAME',
+    //                                                 passwordVariable: 'DOCKER_PASSWORD')]) {
+    //                     sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
+    //                 }
 
-                    // Run build.sh from repo root, not inside build/
-                    sh "chmod +x build/build.sh"
-                    sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
-                }
+    //                 // Run build.sh from repo root, not inside build/
+    //                 sh "chmod +x build/build.sh"
+    //                 sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
+    //             }
+    //         }
+    //     }
+    // }
+
+
+    stage('Build & Push Image') {
+        steps {
+            script {
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                                            usernameVariable: 'DOCKER_USERNAME',
+                                            passwordVariable: 'DOCKER_PASSWORD')]) {
+                sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
+                
+                // Build the Docker image with version tag
+                sh "docker build -t docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} ."
+                
+                // Tag the same image as 'latest'
+                sh "docker tag docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} docker.nexthouse.org/engage/${env.SERVICE}:latest"
+                
+                // Push both tags
+                sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION}"
+                sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:latest"
             }
+            
+            // Remove the build.sh execution if it's no longer needed
+            // sh "chmod +x build/build.sh"
+            // sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
         }
     }
+}
+
 
     post {
         failure {
