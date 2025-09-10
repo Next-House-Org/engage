@@ -129,8 +129,15 @@ done
 SERVICE_INFO="${SERVICES[$((svc_num-1))]}"
 IFS='|' read -r SERVICE IMAGE_NAME BUILD_CONTEXT DOCKERFILE DESCRIPTION <<< "$SERVICE_INFO"
 
-# Clean up any description text that might be in the dockerfile path
-DOCKERFILE=$(echo "$DOCKERFILE" | awk '{print $1}')
+# Ensure build context is relative to repo root
+if [[ ! "$BUILD_CONTEXT" =~ ^/ ]]; then
+    BUILD_CONTEXT="$PWD/$BUILD_CONTEXT"
+fi
+
+# Ensure Dockerfile path is absolute
+if [[ ! "$DOCKERFILE" =~ ^/ ]]; then
+    DOCKERFILE="$PWD/$DOCKERFILE"
+fi
 
 # Validate paths
 if [[ ! -d "$BUILD_CONTEXT" ]]; then
@@ -142,6 +149,10 @@ if [[ ! -f "$DOCKERFILE" ]]; then
   echo -e "${RED}❌ Dockerfile not found: $DOCKERFILE${NC}"
   exit 1
 fi
+
+# Get relative paths for display
+RELATIVE_DOCKERFILE=${DOCKERFILE#$PWD/}
+RELATIVE_CONTEXT=${BUILD_CONTEXT#$PWD/}
 
 # Version input
 while true; do
@@ -164,8 +175,8 @@ LATEST_IMAGE="${FULL_REGISTRY}/${IMAGE_NAME}:latest"
 echo -e "\n${GREEN}📝 Release Summary:${NC}"
 echo -e "Service:    ${BLUE}${SERVICE}${NC} (${DESCRIPTION:-No description})"
 echo -e "Version:    ${BLUE}${VERSION}${NC}"
-echo -e "Dockerfile: ${YELLOW}${DOCKERFILE}${NC}"
-echo -e "Context:    ${YELLOW}${BUILD_CONTEXT}${NC}"
+echo -e "Dockerfile: ${YELLOW}${RELATIVE_DOCKERFILE}${NC}"
+echo -e "Context:    ${YELLOW}${RELATIVE_CONTEXT}${NC}"
 echo -e "Images to build:"
 echo -e "  • ${FULL_IMAGE}"
 echo -e "  • ${LATEST_IMAGE}"
