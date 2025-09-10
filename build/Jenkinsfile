@@ -38,21 +38,21 @@ pipeline {
                     // Extract the latest Git tag
                     def tag = sh(script: "git describe --tags --abbrev=0", returnStdout: true).trim()
 
-                    echo "🔖 Full tag from Git: ${tag}"
+                    echo " Full tag from Git: ${tag}"
 
                     // Expect format: service-version (example: admin-cli-v1.0.0)
                     def idx = tag.lastIndexOf('-')
                     if (idx == -1) {
-                        error "❌ Invalid tag format. Expected: service-version (e.g., admin-cli-v1.0.0)"
+                        error " Invalid tag format. Expected: service-version (e.g., admin-cli-v1.0.0)"
                     }
 
                     def SERVICE = tag.substring(0, idx)           // admin-cli
                     def BASE_VERSION = tag.substring(idx + 1)     // v1.0.0
                     def VERSION = "${BASE_VERSION}-${env.BUILD_NUMBER}"  // v1.0.0-8
 
-                    echo "📦 Service: ${SERVICE}"
-                    echo "🏷️ Base Version: ${BASE_VERSION}"
-                    echo "🚀 Final Version: ${VERSION}"
+                    echo " Service: ${SERVICE}"
+                    echo " Base Version: ${BASE_VERSION}"
+                    echo " Final Version: ${VERSION}"
 
                     // Set environment variables for later stages
                     env.SERVICE = SERVICE
@@ -62,63 +62,44 @@ pipeline {
             }
         }
 
-    //     stage('Build & Push Image') {
-    //         steps {
-    //             script {
-    //                 withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
-    //                                                 usernameVariable: 'DOCKER_USERNAME',
-    //                                                 passwordVariable: 'DOCKER_PASSWORD')]) {
-    //                     sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
-    //                 }
-
-    //                 // Run build.sh from repo root, not inside build/
-    //                 sh "chmod +x build/build.sh"
-    //                 sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
-    //             }
-    //         }
-    //     }
-    // }
-
-
-    stage('Build & Push Image') {
-        steps {
-            script {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
-                                            usernameVariable: 'DOCKER_USERNAME',
-                                            passwordVariable: 'DOCKER_PASSWORD')]) {
-                sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
-                
-                // Build the Docker image with version tag
-                sh "docker build -t docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} ."
-                
-                // Tag the same image as 'latest'
-                sh "docker tag docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} docker.nexthouse.org/engage/${env.SERVICE}:latest"
-                
-                // Push both tags
-                sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION}"
-                sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:latest"
+        stage('Build & Push Image') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                                                usernameVariable: 'DOCKER_USERNAME',
+                                                passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
+                        
+                        // Build the Docker image with version tag
+                        sh "docker build -t docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} ."
+                        
+                        // Tag the same image as 'latest'
+                        sh "docker tag docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION} docker.nexthouse.org/engage/${env.SERVICE}:latest"
+                        
+                        // Push both tags
+                        sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION}"
+                        sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:latest"
+                    }
+                    
+                    // Remove the build.sh execution if it's no longer needed
+                    // sh "chmod +x build/build.sh"
+                    // sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
+                }
             }
-            
-            // Remove the build.sh execution if it's no longer needed
-            // sh "chmod +x build/build.sh"
-            // sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
         }
     }
-}
-
 
     post {
         failure {
-            echo "❌ Build failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo " Build failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
             emailext(
-                subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: " Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: "Check Jenkins logs for details.",
                 to: "tharun@knockthedoor.com"
             )
         }
         success {
-            echo "✅ Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo " Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
 }
-
