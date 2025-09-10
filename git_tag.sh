@@ -2,6 +2,34 @@
 
 set -e
 
+# ==============================================
+# 🚀 Engage Docker Build & Tagging Tool
+# Version: 1.0.0
+# 
+# This script helps manage Docker image building and tagging
+# for the Engage monorepo. It supports multiple services,
+# custom registries, and flexible configuration.
+#
+# Features:
+# - 🔍 Interactive service selection
+# - 🏷️ Semantic versioning support
+# - 📦 Docker image building with proper context
+# - 🔄 Git tag automation
+# - 🎨 Colorful console output
+#
+# Usage:
+#   ./git_tag.sh [options]
+#
+# Options:
+#   -c, --config FILE    Path to build config file
+#   -r, --registry URL   Override Docker registry URL
+#   -p, --product NAME   Override product name
+#   -h, --help           Show this help message
+#
+# Example:
+#   ./git_tag.sh -r myregistry.com -p myproduct
+# ==============================================
+
 # Default values
 DEFAULT_CONFIG_FILE="build/BUILD_CONFIG"
 DEFAULT_DOCKER_REGISTRY="docker.nexthouse.org"
@@ -10,6 +38,7 @@ DEFAULT_DOCKER_REGISTRY="docker.nexthouse.org"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Parse command line arguments
@@ -28,44 +57,62 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      echo -e "${GREEN}Usage: $0 [options]${NC}"
-      echo -e "Options:"
-      echo -e "  -c, --config FILE    Path to build config file (default: build/BUILD_CONFIG)"
-      echo -e "  -r, --registry URL   Override Docker registry URL"
-      echo -e "  -p, --product NAME   Override product name"
-      echo -e "  -h, --help           Show this help message"
+      show_help
       exit 0
       ;;
     *)
-      echo -e "${YELLOW}Unknown option: $1${NC}"
+      echo -e "${RED}❌ Unknown option: $1${NC}"
+      show_help
       exit 1
       ;;
   esac
 done
 
+# Function to display help
+show_help() {
+  # Extract the help text from the header comment
+  sed -n '2,24p' "$0" | sed 's/^# //'
+}
+
 # Load config
 CONFIG_FILE="${CONFIG_FILE:-$DEFAULT_CONFIG_FILE}"
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo -e "${YELLOW}❌ Config file not found: $CONFIG_FILE${NC}"
+  echo -e "${RED}❌ Config file not found: $CONFIG_FILE${NC}"
   exit 1
 fi
-source "$CONFIG_FILE"
+
+# Source the config file in a subshell to avoid variable pollution
+# and extract only the variables we need
+CONFIG_VARS=$(mktemp)
+(
+  source "$CONFIG_FILE"
+  declare -p DOCKER_REGISTRY PRODUCT_NAME SERVICES 2>/dev/null || true
+) > "$CONFIG_VARS"
+source "$CONFIG_VARS"
+rm -f "$CONFIG_VARS"
 
 # Set product name and registry
-PRODUCT_NAME="${PRODUCT_NAME_OVERRIDE:-$PRODUCT_NAME}"
-DOCKER_REGISTRY="${CUSTOM_REGISTRY:-$DOCKER_REGISTRY}"
+PRODUCT_NAME="${PRODUCT_NAME_OVERRIDE:-${PRODUCT_NAME:-engage}}"
+DOCKER_REGISTRY="${CUSTOM_REGISTRY:-${DOCKER_REGISTRY:-$DEFAULT_DOCKER_REGISTRY}}"
 FULL_REGISTRY="${DOCKER_REGISTRY}/${PRODUCT_NAME}"
 
 # Display header
-echo -e "${BLUE}🚀 Docker Image Builder${NC}"
-echo -e "${BLUE}======================${NC}"
-echo -e "Config: ${YELLOW}$CONFIG_FILE${NC}"
-echo -e "Registry: ${YELLOW}$FULL_REGISTRY${NC}"
+echo -e "${BLUE}🚀 Engage Docker Image Builder${NC}"
+echo -e "${BLUE}==============================${NC}"
+echo -e "Config:    ${YELLOW}$CONFIG_FILE${NC}"
+echo -e "Registry:  ${YELLOW}$FULL_REGISTRY${NC}"
+echo -e "Workspace: ${YELLOW}$(pwd)${NC}"
+
+# Validate services array
+if [[ ${#SERVICES[@]} -eq 0 ]]; then
+  echo -e "${RED}❌ No services defined in $CONFIG_FILE${NC}"
+  exit 1
+fi
 
 # List available services
 echo -e "\n${GREEN}📋 Available Services:${NC}"
 for i in "${!SERVICES[@]}"; do
-  IFS='|' read -r service_name image_name _ _ description <<< "${SERVICES[$i]}"
+  IFS='|' read -r service_name image_name build_context dockerfile description <<< "${SERVICES[$i]}"
   printf "${BLUE}%2d) ${NC}%-15s ${YELLOW}%s${NC}\n" "$((i+1))" "$service_name" "${description:-No description}"
 done
 
@@ -82,10 +129,27 @@ done
 SERVICE_INFO="${SERVICES[$((svc_num-1))]}"
 IFS='|' read -r SERVICE IMAGE_NAME BUILD_CONTEXT DOCKERFILE DESCRIPTION <<< "$SERVICE_INFO"
 
+# Clean up any description text that might be in the dockerfile path
+DOCKERFILE=$(echo "$DOCKERFILE" | awk '{print $1}')
+
+# Validate paths
+if [[ ! -d "$BUILD_CONTEXT" ]]; then
+  echo -e "${RED}❌ Build context directory not found: $BUILD_CONTEXT${NC}"
+  exit 1
+fi
+
+if [[ ! -f "$DOCKERFILE" ]]; then
+  echo -e "${RED}❌ Dockerfile not found: $DOCKERFILE${NC}"
+  exit 1
+fi
+
 # Version input
 while true; do
   read -p $'\n🔖 Enter version (e.g., v1.0.0): ' VERSION
   if [[ -n "$VERSION" ]]; then
+    if [[ "$VERSION" != v* ]]; then
+      VERSION="v$VERSION"
+    fi
     break
   fi
   echo -e "${YELLOW}❌ Version cannot be empty${NC}"
@@ -127,7 +191,40 @@ git tag -f -a "$TAG_NAME" -m "Release ${SERVICE} ${VERSION}"
 git push -f origin "$TAG_NAME"
 
 echo -e "\n${GREEN}✅ Release ${TAG_NAME} created successfully!${NC}"
-echo -e "\n${BLUE}🚀 Jenkins will now build and push:${NC}"
-echo -e "• ${FULL_IMAGE}"
-echo -e "• ${LATEST_IMAGE}"
+echo -e "\n${BLUE}🚀 Next steps:${NC}"
+echo -e "1. Jenkins will automatically detect the new tag"
+echo -e "2. The following images will be built and pushed:"
+echo -e "   • ${FULL_IMAGE}"
+echo -e "   • ${LATEST_IMAGE}"
+
 echo -e "\n${GREEN}✨ All done!${NC}"
+
+# ==============================================
+# Integration Guide for Other Projects
+# ==============================================
+# To integrate this script into another project:
+#
+# 1. Copy this script to your project root
+# 2. Create a BUILD_CONFIG file with your services:
+#    ```
+#    # build/BUILD_CONFIG
+#    DOCKER_REGISTRY="your-registry.com"
+#    PRODUCT_NAME="your-product"
+#    
+#    SERVICES=(
+#      "service1|service1-image|path/to/context|path/to/Dockerfile|Description 1"
+#      "service2|service2-image|path/to/context|path/to/Dockerfile|Description 2"
+#    )
+#    ```
+#
+# 3. Make the script executable:
+#    chmod +x git_tag.sh
+#
+# 4. Run the script:
+#    ./git_tag.sh
+#
+# 5. For CI/CD integration (e.g., Jenkins):
+#    - Ensure Docker is installed and configured
+#    - Set up credentials for your Docker registry
+#    - Configure your CI to trigger on tag pushes
+# ==============================================
