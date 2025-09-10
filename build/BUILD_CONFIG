@@ -1,13 +1,27 @@
-# BUILD_CONFIG V.5.0
-# Docker build config for Engage monorepo
+# BUILD_CONFIG V.6.0
+# Docker build configuration for Engage monorepo
 
-DOCKER_REGISTRY="docker.nexthouse.org/engage"
+# Default Docker registry
+DOCKER_REGISTRY="docker.nexthouse.org"
 
-# Service configuration format: "service_name|image-name|build-context|dockerfile"
+# Service configuration format: 
+# "service_name|image-name|build-context|dockerfile-path|description"
 SERVICES=(
-  "dashboard|dashboard|.|./packages/dashboard/Dockerfile"
-  "api|api|.|./packages/api/Dockerfile"
-  "worker|worker|.|./packages/worker/Dockerfile"
-  "lite|lite|.|./packages/lite/Dockerfile"
-  "admin-cli|admin-cli|.|./packages/admin-cli/Dockerfile"
+  # Dashboard service
+  "dashboard|dashboard|packages/dashboard|packages/dashboard/Dockerfile|Next.js frontend dashboard"
+  
+  # API service
+  "api|api|packages/api|packages/api/Dockerfile|Backend API service"
+  
+  # Worker service
+  "worker|worker|packages/worker|packages/worker/Dockerfile|Background job processor"
+  
+  # Lite service
+  "lite|lite|packages/lite|packages/lite/Dockerfile|Lightweight version of the app"
+  
+  # Admin CLI
+  "admin-cli|admin-cli|packages/admin-cli|packages/admin-cli/Dockerfile|Administrative command line tool"
 )
+
+# Default product name (used in image repository)
+PRODUCT_NAME="engage"
