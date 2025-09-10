@@ -129,30 +129,43 @@ done
 SERVICE_INFO="${SERVICES[$((svc_num-1))]}"
 IFS='|' read -r SERVICE IMAGE_NAME BUILD_CONTEXT DOCKERFILE DESCRIPTION <<< "$SERVICE_INFO"
 
-# Ensure build context is relative to repo root
-if [[ ! "$BUILD_CONTEXT" =~ ^/ ]]; then
-    BUILD_CONTEXT="$PWD/$BUILD_CONTEXT"
+# Clean up any description text that might be in the dockerfile path
+DOCKERFILE=$(echo "$DOCKERFILE" | awk '{print $1}')
+
+# Ensure paths are relative to repo root
+REPO_ROOT=$(pwd)
+if [[ "$BUILD_CONTEXT" != /* ]]; then
+    BUILD_CONTEXT="$REPO_ROOT/$BUILD_CONTEXT"
+else
+    BUILD_CONTEXT="$REPO_ROOT${BUILD_CONTEXT#/}"
 fi
 
 # Ensure Dockerfile path is absolute
-if [[ ! "$DOCKERFILE" =~ ^/ ]]; then
-    DOCKERFILE="$PWD/$DOCKERFILE"
+if [[ "$DOCKERFILE" != /* ]]; then
+    DOCKERFILE="$REPO_ROOT/$DOCKERFILE"
+else
+    DOCKERFILE="$REPO_ROOT${DOCKERFILE#/}"
+fi
+
+# For API service, we need to use the repo root as build context
+if [[ "$SERVICE" == "api" ]]; then
+    BUILD_CONTEXT="$REPO_ROOT"
 fi
 
 # Validate paths
 if [[ ! -d "$BUILD_CONTEXT" ]]; then
-  echo -e "${RED}❌ Build context directory not found: $BUILD_CONTEXT${NC}"
-  exit 1
+    echo -e "${RED}❌ Build context directory not found: $BUILD_CONTEXT${NC}"
+    exit 1
 fi
 
 if [[ ! -f "$DOCKERFILE" ]]; then
-  echo -e "${RED}❌ Dockerfile not found: $DOCKERFILE${NC}"
-  exit 1
+    echo -e "${RED}❌ Dockerfile not found: $DOCKERFILE${NC}"
+    exit 1
 fi
 
 # Get relative paths for display
-RELATIVE_DOCKERFILE=${DOCKERFILE#$PWD/}
-RELATIVE_CONTEXT=${BUILD_CONTEXT#$PWD/}
+RELATIVE_DOCKERFILE=${DOCKERFILE#$REPO_ROOT/}
+RELATIVE_CONTEXT=${BUILD_CONTEXT#$REPO_ROOT/}
 
 # Version input
 while true; do

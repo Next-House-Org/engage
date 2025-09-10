@@ -92,14 +92,22 @@ FULL_IMAGE="${FULL_REGISTRY}/${IMAGE_NAME}:${VERSION}"
 LATEST_IMAGE="${FULL_REGISTRY}/${IMAGE_NAME}:latest"
 
 echo "🚀 Building service: $SERVICE"
-echo "➡️ Context: $RELATIVE_CONTEXT"
+echo "➡️ Context: $REPO_ROOT"
 echo "➡️ Dockerfile: $RELATIVE_DOCKERFILE"
 echo "➡️ Versioned Image: $FULL_IMAGE"
 echo "➡️ Latest Image: $LATEST_IMAGE"
 
 # Build and push the image
 set -x
-docker build -t "$FULL_IMAGE" -t "$LATEST_IMAGE" -f "$DOCKERFILE" "$BUILD_CONTEXT"
+cd "$REPO_ROOT"
+docker build \
+  --build-arg APP_VERSION="$VERSION" \
+  -t "$FULL_IMAGE" \
+  -t "$LATEST_IMAGE" \
+  -f "$DOCKERFILE" \
+  --progress=plain \
+  .
+
 docker push "$FULL_IMAGE"
 docker push "$LATEST_IMAGE"
 set +x
