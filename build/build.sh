@@ -39,6 +39,7 @@ fi
 IFS='|' read -r _ IMAGE_NAME CONTEXT DOCKERFILE <<< "$SERVICE_INFO"
 
 FULL_IMAGE="${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION}"
+LATEST_IMAGE="${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
 
 # Go to repo root
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -47,7 +48,14 @@ cd "$REPO_ROOT"
 echo "🚀 Building service: $SERVICE"
 echo "➡️ Context: $CONTEXT"
 echo "➡️ Dockerfile: $DOCKERFILE"
-echo "➡️ Image: $FULL_IMAGE"
+echo "➡️ Versioned Image: $FULL_IMAGE"
+echo "➡️ Latest Image: $LATEST_IMAGE"
 
 docker build -t "$FULL_IMAGE" -f "$DOCKERFILE" "$CONTEXT"
+docker tag "$FULL_IMAGE" "$LATEST_IMAGE"
+
 docker push "$FULL_IMAGE"
+docker push "$LATEST_IMAGE"
+
+echo "✅ Successfully built and pushed: $FULL_IMAGE"
+echo "✅ Successfully tagged and pushed: $LATEST_IMAGE"
