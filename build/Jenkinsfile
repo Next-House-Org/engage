@@ -66,8 +66,8 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}",
-                                                usernameVariable: 'DOCKER_USERNAME',
-                                                passwordVariable: 'DOCKER_PASSWORD')]) {
+                                                    usernameVariable: 'DOCKER_USERNAME',
+                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
                         sh 'echo $DOCKER_PASSWORD | docker login docker.nexthouse.org -u $DOCKER_USERNAME --password-stdin'
                         
                         // Build the Docker image with version tag
@@ -79,11 +79,10 @@ pipeline {
                         // Push both tags
                         sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION}"
                         sh "docker push docker.nexthouse.org/engage/${env.SERVICE}:latest"
+                        
+                        echo "✅ Successfully built and pushed: docker.nexthouse.org/engage/${env.SERVICE}:${env.VERSION}"
+                        echo "✅ Successfully tagged and pushed: docker.nexthouse.org/engage/${env.SERVICE}:latest"
                     }
-                    
-                    // Remove the build.sh execution if it's no longer needed
-                    // sh "chmod +x build/build.sh"
-                    // sh "build/build.sh ${env.SERVICE} ${env.VERSION}"
                 }
             }
         }
